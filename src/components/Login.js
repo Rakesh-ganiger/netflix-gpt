@@ -1,20 +1,89 @@
 import { useRef, useState } from "react"
 import Header from "./Header"
 import {checkValiDate} from "../utils/checkValidation"
+import { background } from "../utils/constants"
+import { createUserWithEmailAndPassword ,signInWithEmailAndPassword, updateProfile } from "firebase/auth";
+import {auth} from "../utils/firebase"
+import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { addUser } from "../utils/userSlice";
 
 const Login = () => {
     
     const[isLoginForm, setIsLoginForm]= useState(false)
-    const[errorMsg, setErrorMsg]= useState();
+    const[errorMsg, setErrorMsg]= useState(null);
+    const navigate= useNavigate();
+    const dispatch= useDispatch();
     
     const name= useRef(null)
     const email= useRef(null)
     const password= useRef(null)
 
     const handleSubmit = () =>{
+      // const emailValue = email.current?.value || "";
+      // const passwordValue = password.current?.value || "";
+      // const nameValue = isLoginForm ? "" : name.current?.value || ""; 
 
-        const message= checkValiDate(email.current.value ,password.current.value, name.current.value)
+        const message= checkValiDate(email.current.value, password.current.value)
+
         setErrorMsg(message)
+
+        if(message) return;
+
+        //signup and signin logic
+
+        if(!isLoginForm){
+          //signup logic
+          
+          createUserWithEmailAndPassword(auth, email.current.value, password.current.value)
+            .then((userCredential) => {
+              // Signed up 
+              const user = userCredential.user;
+
+              updateProfile(user, {
+                displayName: name.current.value, photoURL: "https://avatars.githubusercontent.com/u/121821207?v=4"
+                
+
+              }).then(() => {
+                // Profile updated!
+                // ...
+                const{ uid, email, displayName, photoURL}=auth.currentUser;
+                dispatch(addUser({uid:uid, email:email, displayName:displayName, photoURL:photoURL}))
+                navigate("/browse")
+
+              }).catch((error) => {
+                setErrorMsg(error.message)
+              });
+              
+              
+              // ...
+            })
+            .catch((error) => {
+              const errorCode = error.code;
+              const errorMessage = error.message;
+              setErrorMsg(errorCode + "-" + errorMessage);
+              // ..
+            });
+
+        }else{
+          //Sign In logic
+          
+          signInWithEmailAndPassword(auth, email.current.value, password.current.value)
+            .then((userCredential) => {
+              // Signed in 
+              const user = userCredential.user; 
+              console.log(user)  
+              navigate("/browse")
+              // ...
+            })
+            .catch((error) => {
+              const errorCode = error.code;
+              const errorMessage = error.message;
+              setErrorMsg(errorCode +"-" + errorMessage)
+            });
+
+        }
+        
     }
 
 
@@ -25,7 +94,7 @@ const Login = () => {
 
         <div className="absolute">
         <img
-          src="https://assets.nflxext.com/ffe/siteui/vlv3/fc164b4b-f085-44ee-bb7f-ec7df8539eff/d23a1608-7d90-4da1-93d6-bae2fe60a69b/IN-en-20230814-popsignuptwoweeks-perspective_alpha_website_large.jpg"
+          src={background}
           alt="logo"
         />
         </div>
@@ -64,11 +133,11 @@ const Login = () => {
 
             <button className="p-4 my-6 bg-red-700 w-full rounded-lg" onClick={handleSubmit}>{isLoginForm ? "Sign In" :"Sign Up" }</button>
 
-            <p className="py-4 cursor-pointer" onClick={(e) => setIsLoginForm((user)=>!user)}>{isLoginForm ? "New user Sign Up here" :"Existing User? Login here"}</p>
+            <p className="py-4 cursor-pointer" onClick={(e) => setIsLoginForm((user) => !user)}>{isLoginForm ? "New user Sign Up here" :"Existing User? Login here"}</p>
 
         </form>
     </div>
   )
 }
 
-export default Login
+export default Login;
